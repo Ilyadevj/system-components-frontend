@@ -1,51 +1,46 @@
-import { useState, useMemo } from "react";
+import { useEffect } from "react";
 import type { FC, FormEvent } from "react";
 import { Form, Button, Spinner } from "react-bootstrap";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "../store";
+import {
+  fetchComponentsList,
+  setSearchName,
+  toggleGroup,
+  setSelectedPriority,
+  applyFilters,
+  resetFilters,
+  deleteComponentAsync,
+} from "../slices/componentsSlice";
 import { ROUTES } from "../Routes";
 import { ComponentCard } from "../components/ComponentCard";
-import type { AppOutletContext } from "../AppLayout";
 
 const ARCH_LAYERS = ["Шлюзы", "Бэкенд", "Базы данных", "Кэш", "Хранилище"];
 
 export const ComponentsGridPage: FC = () => {
-  const { cards, setCards } = useOutletContext<AppOutletContext>();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [searchName, setSearchName] = useState("");
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [selectedPriority, setSelectedPriority] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  const { items, loading, filters } = useSelector(
+    (state: RootState) => state.components
+  );
+  const { isAuthenticated } = useSelector((state: RootState) => state.user);
 
-  // Активные применённые значения фильтра
-  const [activeSearch, setActiveSearch] = useState("");
-  const [activeGroups, setActiveGroups] = useState<string[]>([]);
-  const [activePriority, setActivePriority] = useState<string>("");
-
-  const toggleGroup = (group: string) => {
-    setSelectedGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
-    );
-  };
+  // Загрузка компонентов через Redux Thunk при монтировании
+  useEffect(() => {
+    dispatch(fetchComponentsList());
+  }, [dispatch]);
 
   const handleApplyFilter = (e?: FormEvent) => {
     e?.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setActiveSearch(searchName);
-      setActiveGroups(selectedGroups);
-      setActivePriority(selectedPriority);
-      setLoading(false);
-    }, 120);
+    dispatch(applyFilters());
+    dispatch(fetchComponentsList());
   };
 
   const handleResetFilter = () => {
-    setSearchName("");
-    setSelectedGroups([]);
-    setSelectedPriority("");
-    setActiveSearch("");
-    setActiveGroups([]);
-    setActivePriority("");
+    dispatch(resetFilters());
+    dispatch(fetchComponentsList());
   };
 
   const handleCardClick = (componentId: number) => {
@@ -53,26 +48,17 @@ export const ComponentsGridPage: FC = () => {
   };
 
   const handleDeleteCard = (componentId: number) => {
-    setCards((prev) => prev.filter((item) => item.id !== componentId));
+    dispatch(deleteComponentAsync(componentId));
   };
 
-  const displayedComponents = useMemo(() => {
-    return cards.filter((item) => {
-      const matchSearch =
-        !activeSearch ||
-        item.name.toLowerCase().includes(activeSearch.toLowerCase()) ||
-        item.description.toLowerCase().includes(activeSearch.toLowerCase());
-      const matchGroup =
-        !activeGroups.length || activeGroups.includes(item.grouping);
-      const matchPriority =
-        !activePriority || String(item.priority) === activePriority;
-      return matchSearch && matchGroup && matchPriority;
-    });
-  }, [cards, activeSearch, activeGroups, activePriority]);
+  const isFilterActive =
+    Boolean(filters.searchName) ||
+    filters.selectedGroups.length > 0 ||
+    Boolean(filters.selectedPriority);
 
   return (
     <>
-      {/* ФИЛЬТР СЛОЕВ И ПАРАМЕТРОВ */}
+      {/* ФИЛЬТР СЛОЕВ И ПАРАМЕТРОВ АРХИТЕКТУРЫ (ХРАНИТСЯ В REDUX TOOLKIT) */}
       <Form onSubmit={handleApplyFilter} className="filter-box">
         <div className="filter-header-label">Фильтры слоев архитектуры:</div>
 
@@ -80,13 +66,17 @@ export const ComponentsGridPage: FC = () => {
           <Form.Control
             type="text"
             className="text-input"
-            placeholder="Поиск по названию компонента..."
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
+            placeholder="Поиск по названию или роли узла..."
+            value={filters.searchName}
+            onChange={(e) => dispatch(setSearchName(e.target.value))}
+            disabled={loading}
           />
         </div>
 
-        <div className="filter-row" style={{ marginBottom: "10px", flexWrap: "wrap", gap: "10px" }}>
+        <div
+          className="filter-row"
+          style={{ marginBottom: "10px", flexWrap: "wrap", gap: "10px" }}
+        >
           <div className="checkbox-group">
             {ARCH_LAYERS.map((groupName) => (
               <label key={groupName} className="checkbox-label">
@@ -94,8 +84,9 @@ export const ComponentsGridPage: FC = () => {
                   type="checkbox"
                   name="groups"
                   value={groupName}
-                  checked={selectedGroups.includes(groupName)}
-                  onChange={() => toggleGroup(groupName)}
+                  checked={filters.selectedGroups.includes(groupName)}
+                  onChange={() => dispatch(toggleGroup(groupName))}
+                  disabled={loading}
                 />
                 <span>{groupName}</span>
               </label>
@@ -105,8 +96,9 @@ export const ComponentsGridPage: FC = () => {
           <Form.Select
             className="text-input"
             style={{ width: "auto", minWidth: "140px" }}
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
+            value={filters.selectedPriority}
+            onChange={(e) => dispatch(setSelectedPriority(e.target.value))}
+            disabled={loading}
           >
             <option value="">Все приоритеты</option>
             <option value="1">Приоритет 1 (Выс)</option>
@@ -119,12 +111,13 @@ export const ComponentsGridPage: FC = () => {
           <Button type="submit" className="apply-btn" disabled={loading}>
             {loading ? <Spinner animation="border" size="sm" /> : "Применить"}
           </Button>
-          {(activeSearch || activeGroups.length > 0 || activePriority) && (
+          {isFilterActive && (
             <Button
               type="button"
               className="apply-btn"
               style={{ background: "rgba(255, 255, 255, 0.1)" }}
               onClick={handleResetFilter}
+              disabled={loading}
             >
               Сбросить
             </Button>
@@ -132,28 +125,25 @@ export const ComponentsGridPage: FC = () => {
         </div>
       </Form>
 
-      {loading ? (
-        <div className="empty-state">
-          <Spinner animation="border" />
-        </div>
-      ) : (
-        <div className="cards-grid">
-          {displayedComponents.length > 0 ? (
-            displayedComponents.map((item) => (
-              <ComponentCard
-                key={item.id}
-                onClick={() => handleCardClick(item.id)}
-                onDelete={() => handleDeleteCard(item.id)}
-                {...item}
-              />
-            ))
-          ) : (
-            <div className="empty-state">
-              Нет опубликованных компонентов по выбранному фильтру
-            </div>
-          )}
-        </div>
-      )}
+      {/* СЕТКА КАРТОЧЕК */}
+      <div className="cards-grid">
+        {items.length > 0 ? (
+          items.map((item) => (
+            <ComponentCard
+              key={item.id}
+              onClick={() => handleCardClick(item.id)}
+              onDelete={
+                isAuthenticated ? () => handleDeleteCard(item.id) : undefined
+              }
+              {...item}
+            />
+          ))
+        ) : (
+          <div className="empty-state">
+            Нет опубликованных компонентов по выбранному фильтру
+          </div>
+        )}
+      </div>
     </>
   );
 };

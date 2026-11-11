@@ -1,22 +1,28 @@
 import type { FC } from "react";
-import "./TabBar.css";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
+import type { RootState, AppDispatch } from "../store";
+import { logoutSuccess } from "../slices/userSlice";
+import { resetFilters, fetchComponentsList } from "../slices/componentsSlice";
 import { ROUTES, ROUTE_LABELS } from "../Routes";
-import type { SystemComponent } from "../modules/componentsApi";
+import "./TabBar.css";
 
-interface Props {
-  cards: SystemComponent[];
-}
-
-export const TabBar: FC<Props> = ({ cards }) => {
+export const TabBar: FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch<AppDispatch>();
+
+  const { isAuthenticated } = useSelector((state: RootState) => state.user);
+  const { items } = useSelector((state: RootState) => state.components);
 
   const isFeed = location.pathname.startsWith(ROUTES.FEED);
   const isGrid = location.pathname === ROUTES.GRID || location.pathname === "/system-components";
+  const isEditor = location.pathname === ROUTES.ADD || location.pathname === "/editor";
+  const isLogin = location.pathname === ROUTES.LOGIN;
 
   const goToFeed = () => {
-    const firstId = cards[0]?.id;
+    const firstId = items[0]?.id;
     if (firstId) {
       navigate(`${ROUTES.FEED}/${firstId}`);
     } else {
@@ -28,9 +34,33 @@ export const TabBar: FC<Props> = ({ cards }) => {
     navigate(ROUTES.GRID);
   };
 
+  const goToAdd = () => {
+    if (isAuthenticated) {
+      navigate(ROUTES.ADD);
+    }
+  };
+
+  const handleAuthAction = async () => {
+    if (isAuthenticated) {
+      try {
+        await axios.post("/api/users/logout").catch(async () => {
+          await axios.post("/api/logout");
+        });
+      } catch {
+        // fallback
+      }
+      dispatch(logoutSuccess());
+      dispatch(resetFilters()); // При выходе сбрасывается фильтр
+      dispatch(fetchComponentsList());
+      navigate(ROUTES.GRID);
+    } else {
+      navigate(ROUTES.LOGIN);
+    }
+  };
+
   return (
     <nav className="bottom-tab-bar" aria-label="Нижняя панель навигации">
-      {/* 1. Лента — доступна */}
+      {/* 1. Лента — доступна всегда */}
       <button
         type="button"
         className={`tab-item ${isFeed ? "active" : ""}`}
@@ -43,13 +73,18 @@ export const TabBar: FC<Props> = ({ cards }) => {
         <span>{ROUTE_LABELS.FEED}</span>
       </button>
 
-      {/* 2. Добавление — недоступна для гостя (по заданию лабораторной) */}
+      {/* 2. Добавление — доступно только авторизованному пользователю */}
       <button
         type="button"
-        disabled
-        className="tab-item tab-item-disabled"
-        title="Добавление недоступно для гостей"
-        aria-disabled="true"
+        disabled={!isAuthenticated}
+        className={`tab-item ${!isAuthenticated ? "tab-item-disabled" : ""} ${isEditor ? "active" : ""}`}
+        onClick={goToAdd}
+        title={
+          isAuthenticated
+            ? ROUTE_LABELS.ADD
+            : "Добавление доступно только авторизованным пользователям"
+        }
+        aria-disabled={!isAuthenticated}
       >
         <svg className="tab-icon" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14" />
@@ -57,7 +92,7 @@ export const TabBar: FC<Props> = ({ cards }) => {
         <span>{ROUTE_LABELS.ADD}</span>
       </button>
 
-      {/* 3. Плитка — доступна */}
+      {/* 3. Плитка — доступна всегда */}
       <button
         type="button"
         className={`tab-item ${isGrid ? "active" : ""}`}
@@ -73,19 +108,31 @@ export const TabBar: FC<Props> = ({ cards }) => {
         <span>{ROUTE_LABELS.GRID}</span>
       </button>
 
-      {/* 4. Вход — недоступна для гостя (по заданию лабораторной) */}
+      {/* 4. Вход / Выход — переключение интерфейса гость/пользователь */}
       <button
         type="button"
-        disabled
-        className="tab-item tab-item-disabled"
-        title="Вход временно недоступен"
-        aria-disabled="true"
+        className={`tab-item ${isLogin ? "active" : ""}`}
+        onClick={handleAuthAction}
+        title={isAuthenticated ? "Выйти из системы" : ROUTE_LABELS.LOGIN}
       >
-        <svg className="tab-icon" viewBox="0 0 24 24">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-        <span>{ROUTE_LABELS.LOGIN}</span>
+        {isAuthenticated ? (
+          <>
+            <svg className="tab-icon" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Выход</span>
+          </>
+        ) : (
+          <>
+            <svg className="tab-icon" viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span>{ROUTE_LABELS.LOGIN}</span>
+          </>
+        )}
       </button>
     </nav>
   );

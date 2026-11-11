@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { FeedDetailPage } from "./pages/FeedDetailPage";
 import ComponentsGridPage from "./pages/ComponentsGridPage";
 import EditorPage from "./pages/EditorPage";
+import LoginPage from "./pages/LoginPage";
 import { ROUTES } from "./Routes";
 import { AppLayout } from "./AppLayout";
 
@@ -15,9 +16,10 @@ function App() {
           <Route path={`${ROUTES.FEED}/:id`} element={<FeedDetailPage />} />
           <Route path={ROUTES.FEED} element={<FeedDetailPage />} />
           <Route path="/system-components/feed" element={<FeedDetailPage />} />
+          <Route path={ROUTES.ADD} element={<EditorPage />} />
           <Route path="/editor" element={<EditorPage />} />
           <Route path="/system-components/editor" element={<EditorPage />} />
-          <Route path={ROUTES.ADD} element={<EditorPage />} />
+          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
           <Route path="*" element={<Navigate to={ROUTES.GRID} replace />} />
         </Route>
       </Routes>

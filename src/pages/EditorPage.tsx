@@ -1,20 +1,31 @@
 import { useState } from "react";
 import type { FC, FormEvent } from "react";
-import { Form, Button } from "react-bootstrap";
+import { Form, Button, Spinner } from "react-bootstrap";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "../store";
+import { createComponentAsync } from "../slices/componentsSlice";
 import { ROUTES } from "../Routes";
-import type { AppOutletContext } from "../AppLayout";
+import type { ComponentDraft } from "../AppLayout";
 
 const defaultImage = "/DefaultImage.png";
 const defaultVideo = "/DefaultVideo.mp4";
 
+interface EditorOutletContext {
+  draft: ComponentDraft | null;
+  setDraft: React.Dispatch<React.SetStateAction<ComponentDraft | null>>;
+}
+
 export const EditorPage: FC = () => {
-  const { setCards, draft, setDraft } = useOutletContext<AppOutletContext>();
+  const { draft, setDraft } = useOutletContext<EditorOutletContext>();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
+  const { loading } = useSelector((state: RootState) => state.components);
+
   // Состояние формы этапа 1
-  const [imageUrl, setImageUrl] = useState("/gateway.png");
-  const [videoUrl, setVideoUrl] = useState("/DefaultVideo.mp4");
+  const [imageUrl, setImageUrl] = useState("http://localhost:9000/system-components/gateway.png");
+  const [videoUrl, setVideoUrl] = useState("http://localhost:9000/system-components/gateway.mp4");
   const [name, setName] = useState("");
 
   // Состояние формы этапа 2
@@ -33,12 +44,11 @@ export const EditorPage: FC = () => {
     });
   };
 
-  const handlePublish = (e: FormEvent) => {
+  const handlePublish = async (e: FormEvent) => {
     e.preventDefault();
     if (!draft) return;
 
     const newComponent = {
-      id: draft.id || Date.now(),
       name: draft.name,
       imageUrl: draft.imageUrl || defaultImage,
       videoUrl: draft.videoUrl || defaultVideo,
@@ -49,7 +59,8 @@ export const EditorPage: FC = () => {
       likesCount: 0,
     };
 
-    setCards((prev) => [newComponent, ...prev]);
+    // Вызываем Redux Thunk через сгенерированный API-клиент (axios)
+    await dispatch(createComponentAsync(newComponent));
     setDraft(null);
     navigate(ROUTES.GRID);
   };
@@ -72,6 +83,7 @@ export const EditorPage: FC = () => {
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -87,6 +99,7 @@ export const EditorPage: FC = () => {
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -102,12 +115,13 @@ export const EditorPage: FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
           </div>
 
           <div className="action-footer">
-            <Button type="submit" className="submit-btn">
+            <Button type="submit" className="submit-btn" disabled={loading}>
               Далее →
             </Button>
           </div>
@@ -166,6 +180,7 @@ export const EditorPage: FC = () => {
                 placeholder="Опишите назначение и роль компонента в системе..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -181,6 +196,7 @@ export const EditorPage: FC = () => {
                 placeholder="Кэш, БД, Бэкенд"
                 value={grouping}
                 onChange={(e) => setGrouping(e.target.value)}
+                disabled={loading}
               />
             </div>
 
@@ -197,13 +213,25 @@ export const EditorPage: FC = () => {
                 max={10}
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
+                disabled={loading}
               />
             </div>
           </div>
 
           <div className="action-footer">
-            <Button type="submit" className="submit-btn publish-color">
-              Опубликовать
+            <Button
+              type="submit"
+              className="submit-btn publish-color"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Публикация...
+                </>
+              ) : (
+                "Опубликовать"
+              )}
             </Button>
           </div>
         </Form>

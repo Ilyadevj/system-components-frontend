@@ -25,7 +25,7 @@ export const ComponentCard: FC<ICardProps> = ({
     }
   };
 
-  // Предусмотрено дефолтное изображение, если поле imageUrl пустое
+
   const resolvedImage = imageUrl && imageUrl.trim() ? imageUrl : defaultImage;
 
   return (

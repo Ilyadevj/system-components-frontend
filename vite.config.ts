@@ -5,18 +5,23 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-    },
+    port: 3000,
+    strictPort: true,
+    host: true,
     watch: {
       usePolling: true,
     },
-    host: true,
-    strictPort: true,
-    port: 3000,
+    proxy: {
+      // 1. Проксирование запросов к бэкенд API (порт 8080)
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      // 2. Проксирование запросов к S3 / MinIO медиа-хранилищу (порт 9000)
+      '/system-components': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+      },
+    },
   },
 })
