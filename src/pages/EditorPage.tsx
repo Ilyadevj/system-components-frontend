@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FC, FormEvent } from "react";
+import type { FC, FormEvent, ChangeEvent } from "react";
 import { Form, Button, Spinner } from "react-bootstrap";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,6 +10,13 @@ import type { ComponentDraft } from "../AppLayout";
 
 const defaultImage = "/DefaultImage.png";
 const defaultVideo = "/DefaultVideo.mp4";
+
+const PRESET_IMAGES = [
+  { label: "Шлюз", url: "/gateway.png" },
+  { label: "Бэкенд", url: "/auth.png" },
+  { label: "База данных", url: "/postgres.png" },
+  { label: "Кэш", url: "/redis.png" },
+];
 
 interface EditorOutletContext {
   draft: ComponentDraft | null;
@@ -23,15 +30,33 @@ export const EditorPage: FC = () => {
 
   const { loading } = useSelector((state: RootState) => state.components);
 
-  // Состояние формы этапа 1
-  const [imageUrl, setImageUrl] = useState("http://localhost:9000/system-components/gateway.png");
-  const [videoUrl, setVideoUrl] = useState("http://localhost:9000/system-components/gateway.mp4");
+  // Состояние формы этапа 1 (без ручного ввода громоздких URL)
+  const [imageUrl, setImageUrl] = useState("/gateway.png");
+  const [videoUrl, setVideoUrl] = useState("/DefaultVideo.mp4");
+  const [imageFileName, setImageFileName] = useState("");
+  const [videoFileName, setVideoFileName] = useState("");
   const [name, setName] = useState("");
 
   // Состояние формы этапа 2
   const [description, setDescription] = useState("");
-  const [grouping, setGrouping] = useState("");
+  const [grouping, setGrouping] = useState("Бэкенд");
   const [priority, setPriority] = useState(1);
+
+  const handleImageFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFileName(file.name);
+      setImageUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleVideoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoFileName(file.name);
+      setVideoUrl(URL.createObjectURL(file));
+    }
+  };
 
   const handleCreateDraft = (e: FormEvent) => {
     e.preventDefault();
@@ -68,39 +93,81 @@ export const EditorPage: FC = () => {
   return (
     <>
       {!draft ? (
-        /* ЭТАП 1: Создание черновика */
+        /* ЭТАП 1: Создание черновика (без ручных URL — выбор файла или пресета) */
         <Form onSubmit={handleCreateDraft} className="editor-form-stack">
           <div className="form-section-media">
             <div className="field-box">
               <Form.Label className="field-label">
-                Ссылка на изображение компонента *
+                Изображение компонента
               </Form.Label>
               <Form.Control
-                type="text"
-                name="image_url"
+                type="file"
+                accept="image/*"
                 className="text-input"
-                placeholder="http://localhost:9000/system-components/..."
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                required
+                onChange={handleImageFileChange}
                 disabled={loading}
               />
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  marginTop: "8px",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                  Или выберите типовую иконку:
+                </span>
+                {PRESET_IMAGES.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    style={{
+                      fontSize: "11px",
+                      padding: "2px 8px",
+                      borderColor:
+                        imageUrl === preset.url
+                          ? "#3274D9"
+                          : "rgba(255, 255, 255, 0.15)",
+                      backgroundColor:
+                        imageUrl === preset.url
+                          ? "rgba(50, 116, 217, 0.2)"
+                          : "transparent",
+                      color: "#F4F5F6",
+                    }}
+                    onClick={() => {
+                      setImageUrl(preset.url);
+                      setImageFileName("");
+                    }}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              {imageFileName && (
+                <div style={{ fontSize: "11px", color: "#5794F2", marginTop: "4px" }}>
+                  Выбран файл: {imageFileName}
+                </div>
+              )}
             </div>
 
             <div className="field-box">
               <Form.Label className="field-label">
-                Ссылка на демонстрационное видео *
+                Демонстрационное видео
               </Form.Label>
               <Form.Control
-                type="text"
-                name="video_url"
+                type="file"
+                accept="video/*"
                 className="text-input"
-                placeholder="http://localhost:9000/system-components/..."
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                required
+                onChange={handleVideoFileChange}
                 disabled={loading}
               />
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                {videoFileName ? `Выбран файл: ${videoFileName}` : "По умолчанию: стандартный демо-ролик архитектуры"}
+              </div>
             </div>
           </div>
 
@@ -186,35 +253,40 @@ export const EditorPage: FC = () => {
 
             <div className="field-box">
               <Form.Label className="field-label">
-                Группировка (по предметной области: Кэш или БД) *
+                Слой архитектуры (группировка) *
               </Form.Label>
-              <Form.Control
-                type="text"
+              <Form.Select
                 name="grouping"
                 className="text-input"
                 required
-                placeholder="Кэш, БД, Бэкенд"
                 value={grouping}
                 onChange={(e) => setGrouping(e.target.value)}
                 disabled={loading}
-              />
+              >
+                <option value="Шлюзы">Шлюзы</option>
+                <option value="Бэкенд">Бэкенд</option>
+                <option value="Базы данных">Базы данных</option>
+                <option value="Кэш">Кэш</option>
+                <option value="Хранилище">Хранилище</option>
+              </Form.Select>
             </div>
 
             <div className="field-box">
               <Form.Label className="field-label">
-                Приоритет обработки запроса (число) *
+                Приоритет обработки запроса *
               </Form.Label>
-              <Form.Control
-                type="number"
+              <Form.Select
                 name="priority"
                 className="text-input"
                 required
-                min={1}
-                max={10}
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
                 disabled={loading}
-              />
+              >
+                <option value={1}>1 — Высокий приоритет</option>
+                <option value={2}>2 — Средний приоритет</option>
+                <option value={3}>3 — Низкий приоритет</option>
+              </Form.Select>
             </div>
           </div>
 
