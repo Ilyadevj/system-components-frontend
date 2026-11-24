@@ -8,14 +8,16 @@ import { createComponentAsync } from "../slices/componentsSlice";
 import { ROUTES } from "../Routes";
 import type { ComponentDraft } from "../AppLayout";
 
-const defaultImage = "/DefaultImage.png";
-const defaultVideo = "/DefaultVideo.mp4";
+import { getAssetUrl, DEFAULT_IMAGE, DEFAULT_VIDEO } from "../utils/assets";
+
+const defaultImage = DEFAULT_IMAGE;
+const defaultVideo = DEFAULT_VIDEO;
 
 const PRESET_IMAGES = [
-  { label: "Шлюз", url: "/gateway.png" },
-  { label: "Бэкенд", url: "/auth.png" },
-  { label: "База данных", url: "/postgres.png" },
-  { label: "Кэш", url: "/redis.png" },
+  { label: "Шлюз", url: getAssetUrl("/gateway.png") },
+  { label: "Бэкенд", url: getAssetUrl("/auth.png") },
+  { label: "База данных", url: getAssetUrl("/postgres.png") },
+  { label: "Кэш", url: getAssetUrl("/redis.png") },
 ];
 
 interface EditorOutletContext {
@@ -31,8 +33,8 @@ export const EditorPage: FC = () => {
   const { loading } = useSelector((state: RootState) => state.components);
 
   // Состояние формы этапа 1 (без ручного ввода громоздких URL)
-  const [imageUrl, setImageUrl] = useState("/gateway.png");
-  const [videoUrl, setVideoUrl] = useState("/DefaultVideo.mp4");
+  const [imageUrl, setImageUrl] = useState(() => getAssetUrl("/gateway.png"));
+  const [videoUrl, setVideoUrl] = useState(() => getAssetUrl("/DefaultVideo.mp4"));
   const [imageFileName, setImageFileName] = useState("");
   const [videoFileName, setVideoFileName] = useState("");
   const [name, setName] = useState("");

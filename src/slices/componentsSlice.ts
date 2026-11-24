@@ -3,6 +3,7 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../api";
 import type { SystemComponent } from "../modules/componentsApi";
 import { COMPONENTS_MOCK } from "../modules/mock";
+import { DEFAULT_IMAGE, DEFAULT_VIDEO } from "../utils/assets";
 
 export interface FilterState {
   searchName: string;
@@ -98,8 +99,8 @@ export const createComponentAsync = createAsyncThunk(
         grouping: newComponent.grouping || "Бэкенд",
         responseTimeMs: Math.floor(Math.random() * 40) + 10,
         description: newComponent.description || "",
-        imageUrl: newComponent.imageUrl || "/DefaultImage.png",
-        videoUrl: newComponent.videoUrl || "/DefaultVideo.mp4",
+        imageUrl: newComponent.imageUrl || DEFAULT_IMAGE,
+        videoUrl: newComponent.videoUrl || DEFAULT_VIDEO,
         likesCount: 0,
       };
       return fallbackItem;

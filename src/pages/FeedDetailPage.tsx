@@ -7,9 +7,7 @@ import type { RootState, AppDispatch } from "../store";
 import { likeComponentAsync } from "../slices/componentsSlice";
 import { ROUTES } from "../Routes";
 import { COMPONENTS_MOCK } from "../modules/mock";
-
-const defaultImage = "/DefaultImage.png";
-const defaultVideo = "/DefaultVideo.mp4";
+import { getAssetUrl, DEFAULT_IMAGE, DEFAULT_VIDEO } from "../utils/assets";
 
 export const FeedDetailPage: FC = () => {
   const { id } = useParams();
@@ -55,8 +53,8 @@ export const FeedDetailPage: FC = () => {
 
   const isVideoFailed = failedVideoId === pageData.id;
   const hasVideo = Boolean(pageData.videoUrl && pageData.videoUrl.trim());
-  const videoSrc = hasVideo ? pageData.videoUrl : defaultVideo;
-  const imageSrc = pageData.imageUrl && pageData.imageUrl.trim() ? pageData.imageUrl : defaultImage;
+  const videoSrc = hasVideo ? getAssetUrl(pageData.videoUrl) : DEFAULT_VIDEO;
+  const imageSrc = pageData.imageUrl && pageData.imageUrl.trim() ? getAssetUrl(pageData.imageUrl) : DEFAULT_IMAGE;
 
   return (
     <div className="video-container">
@@ -77,7 +75,7 @@ export const FeedDetailPage: FC = () => {
           src={imageSrc}
           alt={pageData.name}
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = defaultImage;
+            (e.currentTarget as HTMLImageElement).src = DEFAULT_IMAGE;
           }}
         />
       )}
@@ -94,6 +92,13 @@ export const FeedDetailPage: FC = () => {
           <span className="param-label">ПРИОРИТЕТ</span>
           <span className="param-val">{pageData.priority ?? "—"}</span>
         </div>
+
+        {typeof pageData.responseTimeMs === "number" && (
+          <div className="sidebar-item param-badge">
+            <span className="param-label">ОТКЛИК</span>
+            <span className="param-val">{pageData.responseTimeMs} мс</span>
+          </div>
+        )}
 
         <div className="sidebar-item like-container" onClick={handleLike}>
           <button

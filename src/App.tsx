@@ -7,8 +7,11 @@ import { ROUTES } from "./Routes";
 import { AppLayout } from "./AppLayout";
 
 function App() {
+  // Динамический базовый маршрут: на GitHub Pages берется '/system-components-frontend/', локально '/'
+  const basename = import.meta.env.BASE_URL || "/";
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route element={<AppLayout />}>
           <Route path={ROUTES.GRID} element={<ComponentsGridPage />} />
