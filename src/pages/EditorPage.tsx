@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { FC, FormEvent, ChangeEvent } from "react";
+import { useEffect, useState } from "react";
+import type { FC, FormEvent } from "react";
 import { Alert, Form, Button, Spinner } from "react-bootstrap";
 import { Navigate, useNavigate, useOutletContext } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,13 +15,6 @@ import { getAssetUrl, DEFAULT_IMAGE, DEFAULT_VIDEO } from "../utils/assets";
 
 const defaultImage = DEFAULT_IMAGE;
 const defaultVideo = DEFAULT_VIDEO;
-
-const PRESET_IMAGES = [
-  { label: "Шлюз", url: getAssetUrl("/gateway.png") },
-  { label: "Бэкенд", url: getAssetUrl("/auth.png") },
-  { label: "База данных", url: getAssetUrl("/postgres.png") },
-  { label: "Кэш", url: getAssetUrl("/redis.png") },
-];
 
 interface EditorOutletContext {
   draft: ComponentDraft | null;
@@ -62,10 +55,8 @@ export const EditorPage: FC = () => {
   const { isAuthenticated } = useSelector((state: RootState) => state.user);
   const [loading, setLoading] = useState(!isMockMode);
   const [error, setError] = useState("");
-  const imageInput = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File>();
   const [videoFile, setVideoFile] = useState<File>();
-  const [presetUrl, setPresetUrl] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [grouping, setGrouping] = useState("Бэкенд");
@@ -89,15 +80,6 @@ export const EditorPage: FC = () => {
     return () => { active = false; };
   }, [isAuthenticated, setDraft]);
 
-  const handleImageFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setImageFile(e.target.files?.[0]);
-    setPresetUrl("");
-  };
-
-  const handleVideoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setVideoFile(e.target.files?.[0]);
-  };
-
   const handleCreateDraft = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -108,19 +90,13 @@ export const EditorPage: FC = () => {
         setDraft({
           id: Date.now(),
           name: name.trim(),
-          imageUrl: imageFile ? await readPreview(imageFile) : presetUrl || defaultImage,
+          imageUrl: imageFile ? await readPreview(imageFile) : defaultImage,
           videoUrl: videoFile ? await readPreview(videoFile) : defaultVideo,
         });
       } else {
         const form = new FormData();
         form.set("name", name.trim());
-        if (imageFile) {
-          form.set("image", imageFile);
-        } else if (presetUrl) {
-          const preset = await fetch(presetUrl);
-          if (!preset.ok) throw new Error("Не удалось загрузить иконку");
-          form.set("image", await preset.blob(), "preset.png");
-        }
+        if (imageFile) form.set("image", imageFile);
         if (videoFile) form.set("video", videoFile);
         const { data } = await api.systemComponents.systemComponentsCreate(form);
         setDraft(toDraft(data));
@@ -180,100 +156,41 @@ export const EditorPage: FC = () => {
     <>
       {error && <Alert variant="danger" className="mx-3 mt-3">{error}</Alert>}
       {!draft ? (
-        /* ЭТАП 1: Создание черновика (без ручных URL — выбор файла или пресета) */
-        <Form onSubmit={handleCreateDraft} className="editor-form-stack">
-          <div className="form-section-media">
-            <div className="field-box">
-              <Form.Label className="field-label">
-                Изображение компонента
-              </Form.Label>
-              <Form.Control
-                ref={imageInput}
+        <Form onSubmit={handleCreateDraft} className="editor-form-stack editor-new">
+          <Form.Group controlId="component-name" className="field-box">
+            <Form.Label className="field-label">Название компонента *</Form.Label>
+            <Form.Control
+              name="name"
+              className="text-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={100}
+              required
+              disabled={loading}
+            />
+          </Form.Group>
+
+          <div className="editor-uploads">
+            <label className="editor-upload">
+              <input
                 type="file"
                 accept="image/*"
-                className="text-input"
-                onChange={handleImageFileChange}
+                onChange={(e) => setImageFile(e.target.files?.[0])}
                 disabled={loading}
               />
-              <div
-                style={{
-                  display: "flex",
-                  gap: "6px",
-                  marginTop: "8px",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                  Или выберите типовую иконку:
-                </span>
-                {PRESET_IMAGES.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    type="button"
-                    variant="outline-secondary"
-                    size="sm"
-                    style={{
-                      fontSize: "11px",
-                      padding: "2px 8px",
-                      borderColor:
-                        presetUrl === preset.url
-                          ? "#3274D9"
-                          : "rgba(255, 255, 255, 0.15)",
-                      backgroundColor:
-                        presetUrl === preset.url
-                          ? "rgba(50, 116, 217, 0.2)"
-                          : "transparent",
-                      color: "#F4F5F6",
-                    }}
-                    onClick={() => {
-                      if (imageInput.current) imageInput.current.value = "";
-                      setPresetUrl(preset.url);
-                      setImageFile(undefined);
-                    }}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-              {imageFile && (
-                <div style={{ fontSize: "11px", color: "#5794F2", marginTop: "4px" }}>
-                  Выбран файл: {imageFile.name}
-                </div>
-              )}
-            </div>
-
-            <div className="field-box">
-              <Form.Label className="field-label">
-                Демонстрационное видео
-              </Form.Label>
-              <Form.Control
+              <span className="field-label">Изображение</span>
+              <span className="editor-upload-name">{imageFile?.name || "Добавить изображение"}</span>
+            </label>
+            <label className="editor-upload">
+              <input
                 type="file"
                 accept="video/*"
-                className="text-input"
-                onChange={handleVideoFileChange}
+                onChange={(e) => setVideoFile(e.target.files?.[0])}
                 disabled={loading}
               />
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                {videoFile ? `Выбран файл: ${videoFile.name}` : "По умолчанию: стандартный демо-ролик архитектуры"}
-              </div>
-            </div>
-          </div>
-
-          <div className="form-section-fields">
-            <div className="field-box">
-              <Form.Label className="field-label">Название компонента *</Form.Label>
-              <Form.Control
-                type="text"
-                name="name"
-                className="text-input"
-                placeholder="Например: Кэш-память Memcached"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
+              <span className="field-label">Видео</span>
+              <span className="editor-upload-name">{videoFile?.name || "Добавить видео"}</span>
+            </label>
           </div>
 
           <div className="action-footer">
@@ -333,7 +250,7 @@ export const EditorPage: FC = () => {
                 className="textarea-input"
                 rows={3}
                 required
-                placeholder="Опишите назначение и роль компонента в системе..."
+                placeholder="Назначение компонента"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={loading}
@@ -342,7 +259,7 @@ export const EditorPage: FC = () => {
 
             <div className="field-box">
               <Form.Label className="field-label">
-                Слой архитектуры (группировка) *
+                Слой архитектуры *
               </Form.Label>
               <Form.Select
                 name="grouping"
@@ -362,7 +279,7 @@ export const EditorPage: FC = () => {
 
             <div className="field-box">
               <Form.Label className="field-label">
-                Приоритет обработки запроса *
+                Приоритет *
               </Form.Label>
               <Form.Select
                 name="priority"

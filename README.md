@@ -54,3 +54,13 @@ npm run preview -- --mode gh-pages
 ### Адаптивность
 
 В каталоге 1 колонка до 460 px, 2 до 768 px, 3 до 1024 px и 4 на более широком экране. Обложка карточки сохраняет пропорцию 16:10. В ленте на телефоне видео занимает доступную высоту экрана, а на широком экране ширина ограничена 960 px. Редактор складывает поля в один столбец на телефоне и располагает группы полей рядом на широком экране. Для показа откройте DevTools в режиме устройства и проверьте ширины 320, 545, 768, 1024 и 1440 px.
+
+### Медиа в демонстрационном каталоге
+
+Обложки пяти карточек взяты из соответствующих роликов. Короткие версии роликов включены в сборку.
+
+- API Gateway — [Blue Colored Cables, Dima Krivoy](https://www.pexels.com/video/blue-colored-cables-1085656/)
+- Auth Service — [Programming a Computer, José Alfredo Munguía Lira](https://www.pexels.com/video/programming-a-computer-1992325/)
+- MinIO — [Close Up Shot of an Electronic Device, MrColo](https://www.pexels.com/video/close-up-shot-of-a-electronic-device-7140931/)
+- Kafka — [A Close-Up Video of Cable Wires Connected on a Motherboard, MrColo](https://www.pexels.com/video/a-close-up-video-of-cable-wires-connected-on-a-motherboard-7140937/)
+- ClickHouse — [Man Working with Computers and Taking Notes, ArtHouse Studio](https://www.pexels.com/video/man-working-with-computers-and-taking-notes-8212367/)

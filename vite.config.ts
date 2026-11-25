@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         workbox: {
-          globPatterns: ['**/*.{html,js,css,svg,png}'],
+          globPatterns: ['**/*.{html,js,css,svg,png,jpg}'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           navigateFallbackDenylist: isGhPages ? [] : [/^\/api(?:\/|$)/, /^\/static\//, /^\/system-components\/(?!feed(?:\/|$)|editor(?:\/|$))/],
         },
