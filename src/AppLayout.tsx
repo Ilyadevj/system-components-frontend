@@ -108,7 +108,7 @@ export const AppLayout: FC = () => {
         </header>
       )}
 
-      <main className={isFeed ? "" : "page-content scrollable"}>
+      <main className={isFeed ? "page-content" : "page-content scrollable"}>
         {logoutError && <Alert variant="danger" className="mx-3">Не удалось выйти из системы.</Alert>}
         <Outlet context={{ draft, setDraft }} />
       </main>
