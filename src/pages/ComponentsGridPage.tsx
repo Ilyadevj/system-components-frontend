@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { FC, FormEvent } from "react";
-import { Form, Button, Spinner } from "react-bootstrap";
+import { Alert, Form, Button, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
@@ -20,7 +20,7 @@ export const ComponentsGridPage: FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const { items, loading, filters } = useSelector(
+  const { items, loading, filters, error } = useSelector(
     (state: RootState) => state.components
   );
   const { isAuthenticated } = useSelector((state: RootState) => state.user);
@@ -93,6 +93,8 @@ export const ComponentsGridPage: FC = () => {
         </div>
       </Form>
 
+      {error && <Alert variant="danger" className="mx-3" role="alert">{error}</Alert>}
+
       {/* СЕТКА КАРТОЧЕК */}
       <div className="cards-grid">
         {items.length > 0 ? (
@@ -101,7 +103,7 @@ export const ComponentsGridPage: FC = () => {
               key={item.id}
               onClick={() => handleCardClick(item.id)}
               onDelete={
-                isAuthenticated ? () => handleDeleteCard(item.id) : undefined
+                isAuthenticated && item.isCreator ? () => handleDeleteCard(item.id) : undefined
               }
               {...item}
             />

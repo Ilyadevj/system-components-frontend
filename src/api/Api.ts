@@ -1,10 +1,10 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
-import type { SystemComponent, ComponentsResult } from "../modules/componentsApi";
+import type { ComponentsResult } from "../modules/componentsApi";
 
 export interface FilterParams {
   search?: string;
-  grouping?: string;
+  groups?: string[];
   priority?: string | number;
 }
 
@@ -32,31 +32,21 @@ export class Api {
     ): Promise<AxiosResponse<ComponentsResult>> => {
       return this.instance.get<ComponentsResult>("/api/system-components", {
         params,
+        paramsSerializer: { indexes: null },
         ...config,
       });
     },
 
-    /**
-     * GET /api/system-components/:id
-     * Получение детальной информации по компоненту
-     */
-    systemComponentsDetail: (
-      id: number | string,
-      config?: AxiosRequestConfig
-    ): Promise<AxiosResponse<SystemComponent>> => {
-      return this.instance.get<SystemComponent>(`/api/system-components/${id}`, config);
-    },
+    systemComponentsDraft: () =>
+      this.instance.get<unknown>("/api/system-components/draft"),
 
-    /**
-     * POST /api/system-components
-     * Создание/публикация нового компонента
-     */
-    systemComponentsCreate: (
-      data: Partial<SystemComponent>,
-      config?: AxiosRequestConfig
-    ): Promise<AxiosResponse<SystemComponent>> => {
-      return this.instance.post<SystemComponent>("/api/system-components", data, config);
-    },
+    systemComponentsCreate: (data: FormData) =>
+      this.instance.post<unknown>("/api/system-components", data),
+
+    systemComponentsPublish: (
+      id: number,
+      data: { description: string; grouping: string; priority: number }
+    ) => this.instance.put<unknown>(`/api/system-components/${id}`, data),
 
     /**
      * DELETE /api/system-components/:id
@@ -75,9 +65,9 @@ export class Api {
      */
     systemComponentsLike: (
       id: number | string,
-      config?: AxiosRequestConfig
-    ): Promise<AxiosResponse<{ likesCount: number }>> => {
-      return this.instance.post(`/api/system-components/${id}/like`, {}, config);
+      like: 0 | 1
+    ): Promise<AxiosResponse<{ likes_count: number; is_liked: number }>> => {
+      return this.instance.post(`/api/system-components/${id}/like`, { like });
     },
   };
 }

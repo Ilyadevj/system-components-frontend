@@ -28,23 +28,17 @@ export const userSlice = createSlice({
       state.isAuthenticated = true;
       state.error = null;
       state.loading = false;
-      localStorage.setItem("is_auth", "true");
-      localStorage.setItem("username", action.payload.username);
     },
     loginFailure(state, action: PayloadAction<string>) {
       state.error = action.payload;
       state.isAuthenticated = false;
       state.loading = false;
-      localStorage.removeItem("is_auth");
-      localStorage.removeItem("username");
     },
     logoutSuccess(state) {
       state.username = "";
       state.isAuthenticated = false;
       state.error = null;
       state.loading = false;
-      localStorage.removeItem("is_auth");
-      localStorage.removeItem("username");
     },
     clearUserError(state) {
       state.error = null;

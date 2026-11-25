@@ -1,48 +1,44 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+umask 077
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$DIR"
-
-# Определяем локальный IP
-LOCAL_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -n 1)
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+LOCAL_IP="${1:-}"
 if [ -z "$LOCAL_IP" ]; then
-  LOCAL_IP="127.0.0.1"
+  if command -v ipconfig >/dev/null 2>&1; then
+    NETWORK_INTERFACE=$(route -n get default 2>/dev/null | awk '/interface:/ {print $2; exit}')
+    LOCAL_IP=$(ipconfig getifaddr "${NETWORK_INTERFACE:-en0}" || true)
+  elif command -v ip >/dev/null 2>&1; then
+    LOCAL_IP=$(ip -4 route get 1.1.1.1 | awk '{for (i=1;i<NF;i++) if ($i=="src") {print $(i+1); exit}}')
+  fi
 fi
-echo "Generating SSL certificate for localhost and IP: $LOCAL_IP..."
+if ! [[ "$LOCAL_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+  echo "Укажите IPv4 ноутбука: npm run generate-cert -- 192.168.1.42" >&2
+  exit 1
+fi
 
-# 1. Генерация CA ключа и сертификата (Центр сертификации)
-openssl genrsa -out ca.key 2048
-openssl req -x509 -new -nodes -key ca.key -sha256 -days 365 -out ca.crt \
-  -subj "/C=RU/ST=Moscow/L=Moscow/O=SystemComponents/OU=Dev/CN=Local-Dev-CA"
+TEMP_CERT_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_CERT_DIR"' EXIT
 
-# 2. Генерация приватного ключа сервера
-openssl genrsa -out cert.key 2048
+if [ ! -f ca.key ] || [ ! -f ca.crt ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 \
+    -keyout ca.key -out ca.crt -subj "/CN=System Components Local CA" \
+    -config <(printf '[req]\ndistinguished_name=dn\n[dn]\n[ca]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\n') \
+    -extensions ca
+fi
 
-# 3. Конфиг для запроса сертификата с SAN (Subject Alternative Names)
-cat << SSL_CONF > cert.ext
+cat > "$TEMP_CERT_DIR/server.ext" <<CONF
 authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:localhost,IP:127.0.0.1,IP:$LOCAL_IP
+CONF
 
-[alt_names]
-DNS.1 = localhost
-DNS.2 = *.localhost
-IP.1 = 127.0.0.1
-IP.2 = $LOCAL_IP
-SSL_CONF
-
-# 4. Генерация CSR
-openssl req -new -key cert.key -out cert.csr \
-  -subj "/C=RU/ST=Moscow/L=Moscow/O=SystemComponents/OU=Dev/CN=localhost"
-
-# 5. Подпись сертификата локальным CA
-openssl x509 -req -in cert.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
-  -out cert.crt -days 365 -sha256 -extfile cert.ext
-
-rm -f cert.csr cert.ext ca.srl
-
-echo "SSL certificates generated successfully:"
-echo "  - ca.crt, ca.key (Local Certificate Authority)"
-echo "  - cert.crt, cert.key (Server Certificate and Private Key for localhost & $LOCAL_IP)"
+openssl req -new -newkey rsa:2048 -nodes -keyout "$TEMP_CERT_DIR/cert.key" \
+  -out "$TEMP_CERT_DIR/server.csr" -subj "/CN=localhost"
+openssl x509 -req -in "$TEMP_CERT_DIR/server.csr" -CA ca.crt -CAkey ca.key \
+  -CAserial "$TEMP_CERT_DIR/ca.srl" -CAcreateserial -out "$TEMP_CERT_DIR/cert.crt" \
+  -days 180 -sha256 -extfile "$TEMP_CERT_DIR/server.ext"
+mv "$TEMP_CERT_DIR/cert.key" "$TEMP_CERT_DIR/cert.crt" .
+echo "HTTPS: https://$LOCAL_IP:8443. Установите ca.crt как доверенный CA на телефоне."

@@ -10,9 +10,9 @@
 - **GitHub Pages (PWA в режиме Mock-данных):**  
   [https://ilyadevj.github.io/system-components-frontend/](https://ilyadevj.github.io/system-components-frontend/)
 - **Репозиторий фронтенда:**  
-  [https://github.com/Ilyadevj/system-components-frontend](https://github.com/Ilyadevj/system-components-frontend) (ветки `lab7` и `7`)
+  [https://github.com/Ilyadevj/system-components-frontend](https://github.com/Ilyadevj/system-components-frontend) (ветка `lab7`)
 - **Репозиторий бэкенда:**  
-  [https://github.com/Ilyadevj/system_components](https://github.com/Ilyadevj/system_components) (ветки `lab7` и `7`)
+  [https://github.com/Ilyadevj/system_components](https://github.com/Ilyadevj/system_components) (ветка `lab7`)
 - **Локальный доступ со смартфона по HTTPS через реверс-прокси:**  
   `https://192.168.31.189:8443` (или локальный IP ноутбука в текущей Wi-Fi сети).
 
@@ -22,7 +22,7 @@
 
 ### Блок 1: GitHub Pages, Mock и Progressive Web App (Скриншоты 1–6)
 - **Рисунок 1 – Открытие GitHub Pages со смартфона в режиме Mock-данных**  
-  Открытие страницы `https://ilyadevj.github.io/system-components-frontend/` в мобильном браузере (Chrome / Safari). Так как бэкенд на GitHub Pages недоступен, автоматически срабатывает fallback на локальную коллекцию `COMPONENTS_MOCK` в Redux Toolkit.
+  Открытие страницы `https://ilyadevj.github.io/system-components-frontend/` в мобильном браузере (Chrome / Safari). Сборка Pages использует локальную коллекцию `COMPONENTS_MOCK` в Redux Toolkit.
 - **Рисунок 2 – Сохранение PWA на домашний экран смартфона**  
   Вызов системного меню браузера «Добавить на главный экран» / «Установить приложение». Браузер распознает Web App Manifest (`manifest.webmanifest`) и зарегистрированный Service Worker (`sw.js`).
 - **Рисунок 3 – Запуск автономного приложения PWA**  
@@ -40,33 +40,33 @@
   - 4 колонки карточек на широком мониторе (> 1024px);
   - 3 колонки на ноутбуке (<= 1024px);
   - 2 колонки на планшете (<= 768px);
-  - 1 колонка на мобильном телефоне (<= 480px) с карточками на 100% ширины экрана.
+  - 1 колонка на мобильном телефоне (<= 460px) с карточками на 100% ширины экрана.
 
 ### Блок 3: Интеграция со смартфоном и реальным бэкендом (Скриншоты 8–12)
 - **Рисунок 8 – Подключение телефона к ноутбуку по локальной сети**  
   Ноутбук и телефон подключены к одной Wi-Fi сети. Открытие в браузере смартфона адреса `https://192.168.31.189:8443` через Node.js HTTPS Reverse Proxy.
 - **Рисунок 9 – Аутентификация пользователя на смартфоне**  
-  Ввод логина и пароля на странице `/login`. Сервер Go валидирует пароль через `bcrypt`, генерирует JWT-токен в HTTP-only cookie `jwt_token` и регистрирует активную сессию в Redis (`active_user:{token}`).
+  Ввод логина и пароля на странице `/login`. Сервер Go валидирует пароль по данным в PostgreSQL, генерирует JWT-токен в HTTP-only cookie `jwt_token` и регистрирует активную сессию в Redis (`active_user:{user_id}`).
 - **Рисунок 10 – Страница 1 на смартфоне: Каталог компонентов (бэкенд)**  
   Отображение каталога компонентов, полученных по REST API `GET /api/system-components` из базы данных PostgreSQL.
 - **Рисунок 11 – Страница 2 на смартфоне: Детальная видео-лента (бэкенд)**  
   Воспроизведение видеопотока и графики из объектного хранилища MinIO (`/system-components/*`) и отправка лайка (`POST /api/system-components/:id/like`).
 - **Рисунок 12 – Страница 3 на смартфоне: Форма создания и публикации (бэкенд)**  
-  Создание черновика компонента и его публикация (`PUT /api/system-components/:id`) с автоматическим расчетом интегрального времени отклика $T = \sum (t_i \cdot w(p_i))$ на сервере Go.
+  Создание черновика компонента и его публикация (`PUT /api/system-components/:id`) с передачей описания, группировки и приоритета на Go API.
 
 ### Блок 4: Настройка сертификатов и HTTPS (Скриншоты 13–14)
 - **Рисунок 13 – Настройка локальных SSL-сертификатов**  
   Вывод скрипта `scripts/generate-cert.sh`: создание локального центра сертификации (`ca.crt`, `ca.key`) и сервера (`cert.crt`, `cert.key`) с расширением Subject Alternative Name (SAN: `DNS:localhost`, `IP:127.0.0.1`, `IP:192.168.31.189`).
 - **Рисунок 14 – Использование HTTPS в браузере**  
-  Защищенное соединение по протоколу HTTPS: зеленый замочек / индикатор безопасности, валидация сертификата, отсутствие предупреждений Mixed Content и активный Service Worker в DevTools -> Application.
+  Защищенное соединение по протоколу HTTPS: индикатор безопасности, валидация сертификата, отсутствие предупреждений Mixed Content и активный Service Worker в DevTools -> Application.
 
 ### Блок 5: Разбор настроек адаптивности в исходном коде (Скриншоты 15–17)
 - **Рисунок 15 – Настройки сетки и брейкпоинтов в коде CSS**  
-  Фрагмент `src/MobileApp.css`: правила для `.cards-grid` с брейкпоинтами `@media (max-width: 1024px)`, `@media (max-width: 768px)`, `@media (max-width: 480px)` и конкретным числом колонок (4 -> 3 -> 2 -> 1).
+  Фрагмент `src/MobileApp.css`: правила для `.cards-grid` с брейкпоинтами `@media (max-width: 1024px)`, `@media (max-width: 768px)`, `@media (max-width: 460px)` и конкретным числом колонок (4 -> 3 -> 2 -> 1).
 - **Рисунок 16 – Размеры и геометрия карточек компонентов**  
   Фрагмент CSS: свойства `.grid-card`, отступы `gap` (20px, 16px, 14px, 12px), `padding` сетки и адаптивное соотношение сторон обложки `aspect-ratio: 16 / 10`.
 - **Рисунок 17 – Адаптивная компоновка форм редактора и детального плеера**  
-  Фрагмент CSS: двухколоночная сетка формы на экранах > 768px (`grid-template-columns: 1fr 1fr`) и переход в одноколоночный стек на смартфонах.
+  Фрагмент CSS: двухколоночная сетка формы на экранах > 768px (`grid-template-columns: repeat(2, minmax(0, 1fr))`) и переход в одноколоночный стек на смартфонах.
 
 ---
 
@@ -96,7 +96,7 @@ flowchart TB
 
         subgraph GoBackend ["Go Gin Web Service (:8080)"]
             APIHandler["<<component>> 10 REST API Endpoints\n(Auth, Components, Likes)"]
-            RespCalc["<<component>> Response Time Engine\nT = Σ(t_i * w(p_i))"]
+            RespCalc["<<component>> Component Repository\n(GORM)"]
             JWTMiddleware["<<component>> JWT Auth Middleware\n(HTTP-only cookie, Bearer)"]
         end
 
@@ -105,7 +105,7 @@ flowchart TB
         end
 
         subgraph DBNode ["PostgreSQL Database (:5432)"]
-            PGData["<<database>> Relational Tables\n- users (bcrypt passwords)\n- system_components (soft delete)\n- likes (user_id, component_id)"]
+            PGData["<<database>> Relational Tables\n- users (passwords)\n- system_components (soft delete)\n- likes (user_id, component_id)"]
         end
 
         subgraph RedisNode ["Redis In-Memory Datastore (:6379)"]
@@ -113,7 +113,7 @@ flowchart TB
         end
     end
 
-    ClientMobile -- "HTTPS (port 443)\n[PWA Assets & Mock Fallback]" --> GitHubPages
+    ClientMobile -- "HTTPS (port 443)\n[PWA Assets & Mock Data]" --> GitHubPages
     ClientMobile -- "HTTPS (port 8443)\n[TLS 1.2/1.3, Cookie, REST]" --> SSLTerm
     SSLTerm --> ProxyRouter
     ProxyRouter -- "HTTP (port 8080)\n[/api/* REST]" --> APIHandler
@@ -207,7 +207,7 @@ Redux упрощает и формализует идеи Flux, опираясь
       - Количество колонок: 2 (repeat(2, 1fr))
       - Отступы (padding): 14px
       - Межэлементный зазор (gap): 14px
-   4. Смартфоны / Мобильный режим (<= 480px):
+   4. Смартфоны / Мобильный режим (<= 460px):
       - Количество колонок: 1 (grid-template-columns: 1fr)
       - Карточка растягивается на 100% ширины
       - Отступы (padding): 12px
@@ -236,7 +236,7 @@ Redux упрощает и формализует идеи Flux, опираясь
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 460px) {
   .cards-grid {
     grid-template-columns: 1fr;
     gap: 12px;

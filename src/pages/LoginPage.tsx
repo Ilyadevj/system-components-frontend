@@ -6,14 +6,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import type { AppDispatch, RootState } from "../store";
 import { loginStart, loginSuccess, loginFailure } from "../slices/userSlice";
+import { isMockMode } from "../modules/dataMode";
 import { ROUTES } from "../Routes";
 
 export const LoginPage: FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState("creator_dev");
-  const [password, setPassword] = useState("secret_password1");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const { error, loading } = useSelector((state: RootState) => state.user);
 
@@ -26,40 +27,19 @@ export const LoginPage: FC = () => {
 
     dispatch(loginStart());
 
-    // По требованию лабораторной: для авторизации только axios БЕЗ кодогенерации и БЕЗ thunk
     try {
-      // 1. Пробуем бэкенд эндпоинт Go / Gin: POST /api/users/login
-      const response = await axios.post("/api/users/login", {
-        login: username.trim(),
-        password: password.trim(),
-      }).catch(async () => {
-        // Fallback на общий эндпоинт если структура другая
-        return await axios.post("/api/login", {
-          username: username.trim(),
-          password: password.trim(),
-        });
-      });
-
-      const token =
-        response.data?.access_token ||
-        response.data?.token ||
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.real_jwt_token";
-      const loggedUser =
-        response.data?.user?.login ||
-        response.data?.username ||
-        username.trim();
-
-      document.cookie = `jwt_token=${token}; path=/; max-age=86400`;
-      localStorage.setItem("session_token", token);
-      dispatch(loginSuccess({ username: loggedUser }));
+      const login = username.trim();
+      if (!isMockMode) {
+        await axios.post("/api/users/login", { login, password });
+      }
+      dispatch(loginSuccess({ username: login }));
       navigate(ROUTES.GRID);
-    } catch {
-      // При отсутствии доступа к бэкенду — демо-токен
-      const mockJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.system_components_mock_jwt";
-      document.cookie = `jwt_token=${mockJwt}; path=/; max-age=86400`;
-      localStorage.setItem("session_token", mockJwt);
-      dispatch(loginSuccess({ username: username.trim() }));
-      navigate(ROUTES.GRID);
+    } catch (error) {
+      dispatch(loginFailure(
+        axios.isAxiosError(error) && error.response?.status === 401
+          ? "Неверный логин или пароль"
+          : "Не удалось войти. Проверьте подключение к серверу."
+      ));
     }
   };
 

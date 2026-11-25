@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FC, FormEvent, ChangeEvent } from "react";
-import { Form, Button, Spinner } from "react-bootstrap";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { Alert, Form, Button, Spinner } from "react-bootstrap";
+import { Navigate, useNavigate, useOutletContext } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
-import { createComponentAsync } from "../slices/componentsSlice";
+import axios from "axios";
+import { api } from "../api";
+import { isMockMode } from "../modules/dataMode";
+import { normalizeComponent, publishMockComponent } from "../slices/componentsSlice";
 import { ROUTES } from "../Routes";
 import type { ComponentDraft } from "../AppLayout";
 
@@ -25,75 +28,157 @@ interface EditorOutletContext {
   setDraft: React.Dispatch<React.SetStateAction<ComponentDraft | null>>;
 }
 
+function toDraft(data: unknown): ComponentDraft {
+  const component = normalizeComponent(data);
+  return {
+    id: component.id,
+    name: component.name,
+    imageUrl: getAssetUrl(component.imageUrl) || defaultImage,
+    videoUrl: getAssetUrl(component.videoUrl) || defaultVideo,
+  };
+}
+
+function readPreview(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error) && typeof error.response?.data?.error === "string") {
+    return error.response.data.error;
+  }
+  return fallback;
+}
+
 export const EditorPage: FC = () => {
   const { draft, setDraft } = useOutletContext<EditorOutletContext>();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const { loading } = useSelector((state: RootState) => state.components);
-
-  // Состояние формы этапа 1 (без ручного ввода громоздких URL)
-  const [imageUrl, setImageUrl] = useState(() => getAssetUrl("/gateway.png"));
-  const [videoUrl, setVideoUrl] = useState(() => getAssetUrl("/DefaultVideo.mp4"));
-  const [imageFileName, setImageFileName] = useState("");
-  const [videoFileName, setVideoFileName] = useState("");
+  const { isAuthenticated } = useSelector((state: RootState) => state.user);
+  const [loading, setLoading] = useState(!isMockMode);
+  const [error, setError] = useState("");
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<File>();
+  const [videoFile, setVideoFile] = useState<File>();
+  const [presetUrl, setPresetUrl] = useState("");
   const [name, setName] = useState("");
-
-  // Состояние формы этапа 2
   const [description, setDescription] = useState("");
   const [grouping, setGrouping] = useState("Бэкенд");
   const [priority, setPriority] = useState(1);
 
+  useEffect(() => {
+    if (!isAuthenticated || isMockMode) return;
+    let active = true;
+    api.systemComponents.systemComponentsDraft()
+      .then(({ data }) => {
+        if (active) setDraft(toDraft(data));
+      })
+      .catch((err: unknown) => {
+        if (active && (!axios.isAxiosError(err) || err.response?.status !== 404)) {
+          setError("Не удалось загрузить черновик");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [isAuthenticated, setDraft]);
+
   const handleImageFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFileName(file.name);
-      setImageUrl(URL.createObjectURL(file));
-    }
+    setImageFile(e.target.files?.[0]);
+    setPresetUrl("");
   };
 
   const handleVideoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setVideoFileName(file.name);
-      setVideoUrl(URL.createObjectURL(file));
-    }
+    setVideoFile(e.target.files?.[0]);
   };
 
-  const handleCreateDraft = (e: FormEvent) => {
+  const handleCreateDraft = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    setDraft({
-      id: Date.now(),
-      name: name.trim(),
-      imageUrl: imageUrl.trim() || defaultImage,
-      videoUrl: videoUrl.trim() || defaultVideo,
-    });
+    setLoading(true);
+    setError("");
+    try {
+      if (isMockMode) {
+        setDraft({
+          id: Date.now(),
+          name: name.trim(),
+          imageUrl: imageFile ? await readPreview(imageFile) : presetUrl || defaultImage,
+          videoUrl: videoFile ? await readPreview(videoFile) : defaultVideo,
+        });
+      } else {
+        const form = new FormData();
+        form.set("name", name.trim());
+        if (imageFile) {
+          form.set("image", imageFile);
+        } else if (presetUrl) {
+          const preset = await fetch(presetUrl);
+          if (!preset.ok) throw new Error("Не удалось загрузить иконку");
+          form.set("image", await preset.blob(), "preset.png");
+        }
+        if (videoFile) form.set("video", videoFile);
+        const { data } = await api.systemComponents.systemComponentsCreate(form);
+        setDraft(toDraft(data));
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        try {
+          const { data } = await api.systemComponents.systemComponentsDraft();
+          setDraft(toDraft(data));
+          return;
+        } catch {
+          setError("Не удалось загрузить существующий черновик");
+          return;
+        }
+      }
+      setError(getErrorMessage(err, "Не удалось создать черновик"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePublish = async (e: FormEvent) => {
     e.preventDefault();
     if (!draft) return;
+    const fields = { description: description.trim(), grouping, priority };
+    if (!fields.description) {
+      setError("Заполните описание компонента");
+      return;
+    }
 
-    const newComponent = {
-      name: draft.name,
-      imageUrl: draft.imageUrl || defaultImage,
-      videoUrl: draft.videoUrl || defaultVideo,
-      description: description.trim(),
-      grouping: grouping.trim() || "Бэкенд",
-      priority: Number(priority) || 1,
-      responseTimeMs: Math.floor(Math.random() * 50) + 10,
-      likesCount: 0,
-    };
-
-    // Вызываем Redux Thunk через сгенерированный API-клиент (axios)
-    await dispatch(createComponentAsync(newComponent));
-    setDraft(null);
-    navigate(ROUTES.GRID);
+    setLoading(true);
+    setError("");
+    try {
+      if (isMockMode) {
+        dispatch(publishMockComponent({
+          ...draft,
+          ...fields,
+          responseTimeMs: 0,
+          likesCount: 0,
+          isCreator: true,
+        }));
+      } else {
+        await api.systemComponents.systemComponentsPublish(draft.id, fields);
+      }
+      setDraft(null);
+      navigate(ROUTES.GRID);
+    } catch (err) {
+      setError(getErrorMessage(err, "Не удалось опубликовать компонент"));
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!isAuthenticated) return <Navigate to={ROUTES.LOGIN} replace />;
 
   return (
     <>
+      {error && <Alert variant="danger" className="mx-3 mt-3">{error}</Alert>}
       {!draft ? (
         /* ЭТАП 1: Создание черновика (без ручных URL — выбор файла или пресета) */
         <Form onSubmit={handleCreateDraft} className="editor-form-stack">
@@ -103,6 +188,7 @@ export const EditorPage: FC = () => {
                 Изображение компонента
               </Form.Label>
               <Form.Control
+                ref={imageInput}
                 type="file"
                 accept="image/*"
                 className="text-input"
@@ -131,27 +217,28 @@ export const EditorPage: FC = () => {
                       fontSize: "11px",
                       padding: "2px 8px",
                       borderColor:
-                        imageUrl === preset.url
+                        presetUrl === preset.url
                           ? "#3274D9"
                           : "rgba(255, 255, 255, 0.15)",
                       backgroundColor:
-                        imageUrl === preset.url
+                        presetUrl === preset.url
                           ? "rgba(50, 116, 217, 0.2)"
                           : "transparent",
                       color: "#F4F5F6",
                     }}
                     onClick={() => {
-                      setImageUrl(preset.url);
-                      setImageFileName("");
+                      if (imageInput.current) imageInput.current.value = "";
+                      setPresetUrl(preset.url);
+                      setImageFile(undefined);
                     }}
                   >
                     {preset.label}
                   </Button>
                 ))}
               </div>
-              {imageFileName && (
+              {imageFile && (
                 <div style={{ fontSize: "11px", color: "#5794F2", marginTop: "4px" }}>
-                  Выбран файл: {imageFileName}
+                  Выбран файл: {imageFile.name}
                 </div>
               )}
             </div>
@@ -168,7 +255,7 @@ export const EditorPage: FC = () => {
                 disabled={loading}
               />
               <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                {videoFileName ? `Выбран файл: ${videoFileName}` : "По умолчанию: стандартный демо-ролик архитектуры"}
+                {videoFile ? `Выбран файл: ${videoFile.name}` : "По умолчанию: стандартный демо-ролик архитектуры"}
               </div>
             </div>
           </div>
