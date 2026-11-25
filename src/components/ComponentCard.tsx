@@ -1,8 +1,7 @@
 import type { FC, MouseEvent } from "react";
 import { Card, Badge } from "react-bootstrap";
 import type { SystemComponent } from "../modules/componentsApi";
-
-const defaultImage = "/DefaultImage.png";
+import { getAssetUrl, DEFAULT_IMAGE } from "../utils/assets";
 
 export interface ICardProps extends SystemComponent {
   onClick: () => void;
@@ -25,8 +24,7 @@ export const ComponentCard: FC<ICardProps> = ({
     }
   };
 
-
-  const resolvedImage = imageUrl && imageUrl.trim() ? imageUrl : defaultImage;
+  const resolvedImage = imageUrl && imageUrl.trim() ? getAssetUrl(imageUrl) : DEFAULT_IMAGE;
 
   return (
     <div className="grid-card-wrapper">
@@ -45,7 +43,7 @@ export const ComponentCard: FC<ICardProps> = ({
             src={resolvedImage}
             alt={name}
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = defaultImage;
+              (e.currentTarget as HTMLImageElement).src = DEFAULT_IMAGE;
             }}
             className="card-img"
           />

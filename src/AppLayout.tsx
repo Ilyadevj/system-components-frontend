@@ -3,22 +3,24 @@ import type { FC } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
-import { Spinner } from "react-bootstrap";
+import { Alert, Spinner } from "react-bootstrap";
 import type { RootState, AppDispatch } from "./store";
 import { logoutSuccess } from "./slices/userSlice";
 import { resetFilters, fetchComponentsList } from "./slices/componentsSlice";
+import { isMockMode } from "./modules/dataMode";
 import { TabBar } from "./components/TabBar";
 import { ROUTES } from "./Routes";
 import "./MobileApp.css";
 
 export interface ComponentDraft {
-  id?: number;
+  id: number;
   name: string;
   imageUrl: string;
   videoUrl: string;
 }
 
 export const AppLayout: FC = () => {
+  const [logoutError, setLogoutError] = useState(false);
   const [draft, setDraft] = useState<ComponentDraft | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,8 +29,8 @@ export const AppLayout: FC = () => {
   const { isAuthenticated, username } = useSelector((state: RootState) => state.user);
   const { loading } = useSelector((state: RootState) => state.components);
 
-  const isFeed = location.pathname.startsWith(ROUTES.FEED);
-  const isEditor = location.pathname === ROUTES.ADD || location.pathname === "/editor";
+  const isFeed = location.pathname.startsWith(ROUTES.FEED) || location.pathname === "/system-components/feed";
+  const isEditor = location.pathname === ROUTES.ADD || ["/editor", "/system-components/editor"].includes(location.pathname);
   const isLogin = location.pathname === ROUTES.LOGIN;
 
   const getHeaderTitle = () => {
@@ -40,17 +42,19 @@ export const AppLayout: FC = () => {
   };
 
   const handleLogout = async () => {
-    // Деавторизация только через axios без кодогенерации и thunk
+    setLogoutError(false);
     try {
-      await axios.post("/api/users/logout").catch(async () => {
-        await axios.post("/api/logout");
-      });
-    } catch {
-      // offline fallback
+      if (!isMockMode) await axios.post("/api/users/logout");
+    } catch (error) {
+      if (!axios.isAxiosError(error) || ![401, 403].includes(error.response?.status ?? 0)) {
+        setLogoutError(true);
+        return;
+      }
     }
     dispatch(logoutSuccess());
-    dispatch(resetFilters()); // При выходе сбрасывается фильтр пользователя
-    dispatch(fetchComponentsList());
+    setDraft(null);
+    dispatch(resetFilters());
+    if (location.pathname === ROUTES.GRID) void dispatch(fetchComponentsList());
     navigate(ROUTES.GRID);
   };
 
@@ -104,11 +108,12 @@ export const AppLayout: FC = () => {
         </header>
       )}
 
-      <main className={isFeed ? "" : "page-content scrollable"}>
+      <main className={isFeed ? "page-content" : "page-content scrollable"}>
+        {logoutError && <Alert variant="danger" className="mx-3">Не удалось выйти из системы.</Alert>}
         <Outlet context={{ draft, setDraft }} />
       </main>
 
-      <TabBar />
+      <TabBar onLogout={handleLogout} />
     </div>
   );
 };

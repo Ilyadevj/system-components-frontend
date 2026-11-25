@@ -1,14 +1,12 @@
 import { useEffect } from "react";
 import type { FC, FormEvent } from "react";
-import { Form, Button, Spinner } from "react-bootstrap";
+import { Alert, Form, Button, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
 import {
   fetchComponentsList,
-  setSearchName,
   toggleGroup,
-  setSelectedPriority,
   applyFilters,
   resetFilters,
   deleteComponentAsync,
@@ -22,7 +20,7 @@ export const ComponentsGridPage: FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const { items, loading, filters } = useSelector(
+  const { items, loading, filters, error } = useSelector(
     (state: RootState) => state.components
   );
   const { isAuthenticated } = useSelector((state: RootState) => state.user);
@@ -51,32 +49,15 @@ export const ComponentsGridPage: FC = () => {
     dispatch(deleteComponentAsync(componentId));
   };
 
-  const isFilterActive =
-    Boolean(filters.searchName) ||
-    filters.selectedGroups.length > 0 ||
-    Boolean(filters.selectedPriority);
+  const isFilterActive = filters.selectedGroups.length > 0;
 
   return (
     <>
-      {/* ФИЛЬТР СЛОЕВ И ПАРАМЕТРОВ АРХИТЕКТУРЫ (ХРАНИТСЯ В REDUX TOOLKIT) */}
+      {/* ФИЛЬТР СЛОЕВ АРХИТЕКТУРЫ (ТОЛЬКО ЧЕКБОКСЫ) */}
       <Form onSubmit={handleApplyFilter} className="filter-box">
         <div className="filter-header-label">Фильтры слоев архитектуры:</div>
 
-        <div className="field-box" style={{ marginBottom: "10px" }}>
-          <Form.Control
-            type="text"
-            className="text-input"
-            placeholder="Поиск по названию или роли узла..."
-            value={filters.searchName}
-            onChange={(e) => dispatch(setSearchName(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div
-          className="filter-row"
-          style={{ marginBottom: "10px", flexWrap: "wrap", gap: "10px" }}
-        >
+        <div className="filter-row" style={{ marginBottom: "12px" }}>
           <div className="checkbox-group">
             {ARCH_LAYERS.map((groupName) => (
               <label key={groupName} className="checkbox-label">
@@ -92,19 +73,6 @@ export const ComponentsGridPage: FC = () => {
               </label>
             ))}
           </div>
-
-          <Form.Select
-            className="text-input"
-            style={{ width: "auto", minWidth: "140px" }}
-            value={filters.selectedPriority}
-            onChange={(e) => dispatch(setSelectedPriority(e.target.value))}
-            disabled={loading}
-          >
-            <option value="">Все приоритеты</option>
-            <option value="1">Приоритет 1 (Выс)</option>
-            <option value="2">Приоритет 2 (Сред)</option>
-            <option value="3">Приоритет 3 (Низ)</option>
-          </Form.Select>
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
@@ -125,6 +93,8 @@ export const ComponentsGridPage: FC = () => {
         </div>
       </Form>
 
+      {error && <Alert variant="danger" className="mx-3" role="alert">{error}</Alert>}
+
       {/* СЕТКА КАРТОЧЕК */}
       <div className="cards-grid">
         {items.length > 0 ? (
@@ -133,7 +103,7 @@ export const ComponentsGridPage: FC = () => {
               key={item.id}
               onClick={() => handleCardClick(item.id)}
               onDelete={
-                isAuthenticated ? () => handleDeleteCard(item.id) : undefined
+                isAuthenticated && item.isCreator ? () => handleDeleteCard(item.id) : undefined
               }
               {...item}
             />

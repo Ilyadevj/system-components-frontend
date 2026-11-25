@@ -1,17 +1,13 @@
 import type { FC } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import axios from "axios";
-import type { RootState, AppDispatch } from "../store";
-import { logoutSuccess } from "../slices/userSlice";
-import { resetFilters, fetchComponentsList } from "../slices/componentsSlice";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import { ROUTES, ROUTE_LABELS } from "../Routes";
 import "./TabBar.css";
 
-export const TabBar: FC = () => {
+export const TabBar: FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch<AppDispatch>();
 
   const { isAuthenticated } = useSelector((state: RootState) => state.user);
   const { items } = useSelector((state: RootState) => state.components);
@@ -40,22 +36,9 @@ export const TabBar: FC = () => {
     }
   };
 
-  const handleAuthAction = async () => {
-    if (isAuthenticated) {
-      try {
-        await axios.post("/api/users/logout").catch(async () => {
-          await axios.post("/api/logout");
-        });
-      } catch {
-        // fallback
-      }
-      dispatch(logoutSuccess());
-      dispatch(resetFilters()); // При выходе сбрасывается фильтр
-      dispatch(fetchComponentsList());
-      navigate(ROUTES.GRID);
-    } else {
-      navigate(ROUTES.LOGIN);
-    }
+  const handleAuthAction = () => {
+    if (isAuthenticated) onLogout();
+    else navigate(ROUTES.LOGIN);
   };
 
   return (

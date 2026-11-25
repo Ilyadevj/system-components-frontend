@@ -10,8 +10,8 @@ export const COMPONENTS_MOCK: ComponentsResult = {
       grouping: "Шлюзы",
       responseTimeMs: 12,
       description: "Входной балансировщик нагрузки и reverse-proxy с SSL-терминацией",
-      imageUrl: "/gateway.png",
-      videoUrl: "/DefaultVideo.mp4",
+      imageUrl: "/demo-media/gateway.jpg",
+      videoUrl: "/demo-media/gateway.mp4",
       likesCount: 24,
     },
     {
@@ -21,8 +21,8 @@ export const COMPONENTS_MOCK: ComponentsResult = {
       grouping: "Бэкенд",
       responseTimeMs: 28,
       description: "Микросервис аутентификации, генерации и валидации JWT токенов",
-      imageUrl: "/auth.png",
-      videoUrl: "/DefaultVideo.mp4",
+      imageUrl: "/demo-media/auth.jpg",
+      videoUrl: "/demo-media/auth.mp4",
       likesCount: 19,
     },
     {
@@ -54,8 +54,8 @@ export const COMPONENTS_MOCK: ComponentsResult = {
       grouping: "Хранилище",
       responseTimeMs: 64,
       description: "Объектное S3-совместимое распределенное хранилище медиафайлов",
-      imageUrl: "/minio.png",
-      videoUrl: "/DefaultVideo.mp4",
+      imageUrl: "/demo-media/storage.jpg",
+      videoUrl: "/demo-media/storage.mp4",
       likesCount: 14,
     },
     {
@@ -64,9 +64,9 @@ export const COMPONENTS_MOCK: ComponentsResult = {
       priority: 2,
       grouping: "Бэкенд",
       responseTimeMs: 15,
-      description: "Распределенный брокер сообщений для межсервисных асинхронных событий (демонстрация видео по умолчанию)",
-      imageUrl: "/gateway.png",
-      videoUrl: "", // Пустое видео: проверяет fallback на дефолтное видео / постер
+      description: "Распределенный брокер сообщений для межсервисных асинхронных событий",
+      imageUrl: "/demo-media/kafka.jpg",
+      videoUrl: "/demo-media/kafka.mp4",
       likesCount: 31,
     },
     {
@@ -75,9 +75,9 @@ export const COMPONENTS_MOCK: ComponentsResult = {
       priority: 3,
       grouping: "Базы данных",
       responseTimeMs: 80,
-      description: "Колоночная аналитическая СУБД для построения отчетов (демонстрация дефолтного изображения и видео)",
-      imageUrl: "", // Пустая картинка: проверяет fallback на DefaultImage.png
-      videoUrl: "", // Пустое видео: проверяет fallback на DefaultVideo.mp4
+      description: "Колоночная аналитическая СУБД для построения отчетов",
+      imageUrl: "/demo-media/analytics.jpg",
+      videoUrl: "/demo-media/analytics.mp4",
       likesCount: 9,
     },
   ],
